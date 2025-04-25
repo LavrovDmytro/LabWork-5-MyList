@@ -315,6 +315,54 @@ fun AddItemButton(addItem: (String) -> Unit = {}) {
 //    }
 //}
 
+@Composable
+fun ShoppingProgress(items: List<ShoppingItem>) {
+    val totalItems = items.size
+    val boughtItems = items.count { it.isBought }
+    val progress = if (totalItems > 0) (boughtItems.toFloat() / totalItems) * 100 else 0f
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant,
+                MaterialTheme.shapes.medium
+            )
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Прогрес покупок:",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Куплено: $boughtItems з $totalItems",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = String.format("%.1f%% завершено", progress),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (totalItems > 0) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    progress = progress / 100f,
+                    modifier = Modifier.padding(start = 16.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
@@ -327,7 +375,10 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        ShoppingProgress(items = viewModel.shoppingList)
+        Spacer(modifier = Modifier.height(16.dp))
         AddItemButton(viewModel::addItem)
+        Spacer(modifier = Modifier.height(8.dp))
         LazyColumn {
             itemsIndexed(viewModel.shoppingList) { index, item ->
                 ShoppingItemCard(
