@@ -151,13 +151,22 @@ class ShoppingListViewModel(application: Application) : AndroidViewModel(applica
             _shoppingList[index] = updatedItem
         }
     }
+
+    fun deleteItem(index: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val item = _shoppingList[index]
+            dao.deleteItem(item)
+            loadShoppingList()
+        }
+    }
 }
 
 
 @Composable
 fun ShoppingItemCard(
     item: ShoppingItem,
-    onToggleBought: () -> Unit = {}
+    onToggleBought: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -165,10 +174,8 @@ fun ShoppingItemCard(
             .padding(8.dp)
             .background(
                 Color.LightGray,
-//                MaterialTheme.colorScheme.surfaceDim,
                 MaterialTheme.shapes.large
             )
-            .clickable { onToggleBought() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -177,9 +184,17 @@ fun ShoppingItemCard(
         })
         Text(
             text = item.name,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onToggleBought() },
             fontSize = 18.sp
         )
+        Button(
+            onClick = onDelete,
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            Text("Delete")
+        }
     }
 }
 
@@ -245,19 +260,21 @@ fun AddItemButton(addItem: (String) -> Unit = {}) {
 
 @Composable
 fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
-    factory = ShoppingListViewModelFactory(LocalContext.current
-        .applicationContext as Application)
+    factory = ShoppingListViewModelFactory(LocalContext.current.applicationContext as Application)
 )) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
             .padding(16.dp)
     ) {
-        item {
-            AddItemButton { viewModel.addItem(it) }
-        }
-        itemsIndexed(viewModel.shoppingList) { ix, item ->
-            ShoppingItemCard(item) {
-                viewModel.toggleBought(ix)
+        AddItemButton(viewModel::addItem)
+        LazyColumn {
+            itemsIndexed(viewModel.shoppingList) { index, item ->
+                ShoppingItemCard(
+                    item = item,
+                    onToggleBought = { viewModel.toggleBought(index) },
+                    onDelete = { viewModel.deleteItem(index) }
+                )
             }
         }
     }
