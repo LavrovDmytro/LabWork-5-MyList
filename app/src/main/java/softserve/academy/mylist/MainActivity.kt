@@ -10,11 +10,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -159,14 +164,61 @@ class ShoppingListViewModel(application: Application) : AndroidViewModel(applica
             loadShoppingList()
         }
     }
+
+    fun updateItemName(index: Int, newName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val item = _shoppingList[index]
+            val updatedItem = item.copy(name = newName)
+            dao.updateItem(updatedItem)
+            _shoppingList[index] = updatedItem
+        }
+    }
 }
 
+
+@Composable
+fun EditItemDialog(
+    itemName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var editedName by remember { mutableStateOf(itemName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Редагувати товар") },
+        text = {
+            OutlinedTextField(
+                value = editedName,
+                onValueChange = { editedName = it },
+                label = { Text("Назва товару") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (editedName.isNotEmpty()) {
+                        onConfirm(editedName)
+                    }
+                }
+            ) {
+                Text("Зберегти")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Скасувати")
+            }
+        }
+    )
+}
 
 @Composable
 fun ShoppingItemCard(
     item: ShoppingItem,
     onToggleBought: () -> Unit = {},
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    onEdit: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -189,6 +241,12 @@ fun ShoppingItemCard(
                 .clickable { onToggleBought() },
             fontSize = 18.sp
         )
+        Button(
+            onClick = onEdit,
+            modifier = Modifier.padding(end = 8.dp)
+        ) {
+            Text("Edit")
+        }
         Button(
             onClick = onDelete,
             modifier = Modifier.padding(start = 8.dp)
@@ -262,6 +320,8 @@ fun AddItemButton(addItem: (String) -> Unit = {}) {
 fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
     factory = ShoppingListViewModelFactory(LocalContext.current.applicationContext as Application)
 )) {
+    var editingItemIndex by remember { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -273,10 +333,23 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = viewModel(
                 ShoppingItemCard(
                     item = item,
                     onToggleBought = { viewModel.toggleBought(index) },
-                    onDelete = { viewModel.deleteItem(index) }
+                    onDelete = { viewModel.deleteItem(index) },
+                    onEdit = { editingItemIndex = index }
                 )
             }
         }
+    }
+
+    // Show edit dialog if an item is being edited
+    editingItemIndex?.let { index ->
+        EditItemDialog(
+            itemName = viewModel.shoppingList[index].name,
+            onDismiss = { editingItemIndex = null },
+            onConfirm = { newName ->
+                viewModel.updateItemName(index, newName)
+                editingItemIndex = null
+            }
+        )
     }
 }
 
